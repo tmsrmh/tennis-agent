@@ -2,10 +2,10 @@ import requests
 
 SESSION = requests.Session()
 REQUEST_TIMEOUT = 15
-COURT_COUNT = 6
 COMPLEX_ID = 12
 SPORT = "Tenisz"
 DEFAULT_FIELD_ID = 27
+FIELD_IDS = [26, 27, 28, 29, 30, 31]
 
 ALL_SLOTS = [
     "07:00","08:00","09:00","10:00","11:00","12:00",
@@ -46,7 +46,7 @@ def get_available_slots(date):
     )
     SESSION.get(init_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=REQUEST_TIMEOUT)
 
-    url = "https://pitchpro.hu/fetchReservations2.php"
+    url = "https://pitchpro.hu/fetchReservations2"
 
     params = {
         "start": f"{date}T00:00:00+01:00",
@@ -97,8 +97,8 @@ def compute_available_slots(reservations):
 
     for time in ALL_SLOTS:
         fields_taken = occupied.get(time, set())
-
-        if len(fields_taken) < COURT_COUNT:
+        taken_known_fields = {int(f) for f in fields_taken if str(f).isdigit() and int(f) in FIELD_IDS}
+        if len(taken_known_fields) < len(FIELD_IDS):
             available.append(time)
 
     return available
@@ -110,7 +110,7 @@ def find_free_field(reservations, time):
         if r.get("reservation_start_time") == time and r.get("field_id") is not None
     )
 
-    for field_id in range(1, COURT_COUNT + 1):
+    for field_id in FIELD_IDS:
         if str(field_id) not in taken:
             return field_id
 
@@ -149,17 +149,23 @@ def run_agent(date, preference, email, password):
 def create_reservation(date, time_slot, field_id):
     url = "https://pitchpro.hu/reservationHandler2.php"
 
+    start_iso = f"{date}T{time_slot}:00+01:00"
+    end_iso = f"{date}T{int(time_slot[:2]) + 1:02d}:00:00+01:00"
     payload = {
-        "field_id": field_id,
-        "reservation_date": date,
-        "reservation_start_time": time_slot,
-        "reservation_end_time": f"{int(time_slot[:2])+1:02d}:00"
+        "request_type": "addEvent",
+        "start": start_iso,
+        "end": end_iso,
+        "id": str(field_id),
+        "event_data": [True]
     }
 
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Content-Type": "application/json",
-        "Referer": f"https://pitchpro.hu/fieldday?complex_id=12&date={date}&sport=Tenisz&field_id={field_id}",
+        "Referer": (
+            "https://pitchpro.hu/fieldday"
+            f"?complex_id={COMPLEX_ID}&date={date}&sport={SPORT}&field_id={DEFAULT_FIELD_ID}&time={time_slot}"
+        ),
         "Origin": "https://pitchpro.hu"
     }
 
