@@ -30,6 +30,7 @@ def login(email, password):
 
 def get_available_slots(date):
     start = f"{date}T00:00:00+01:00"
+    from datetime import datetime, timedelta
     next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     end = f"{next_day}T00:00:00+01:00"
 
@@ -42,10 +43,17 @@ def get_available_slots(date):
 
     headers = {
         "User-Agent": "Mozilla/5.0",
-        "Referer": "https://pitchpro.hu/fieldday"
+        "Accept": "*/*",
+        "Referer": "https://pitchpro.hu/fieldday?complex_id=12&sport=Tenisz&field_id=27",
+        "Origin": "https://pitchpro.hu"
     }
 
     res = SESSION.get(url, params=params, headers=headers)
+
+    # 🔴 DEBUG: inspect response before parsing
+    if "application/json" not in res.headers.get("Content-Type", ""):
+        raise Exception(f"Non-JSON response: {res.text[:200]}")
+
     data = res.json()
 
     booked = set()
