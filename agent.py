@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime, timedelta
+import time
 
 SESSION = requests.Session()
 
@@ -9,6 +10,7 @@ ALL_SLOTS = [
     "19:00","20:00"
 ]
 
+# 🔐 LOGIN
 def login(email, password):
     url = "https://pitchpro.hu/signin_handler.php"
 
@@ -25,29 +27,28 @@ def login(email, password):
     }
 
     res = SESSION.post(url, data=payload, headers=headers)
+
     return res.status_code == 200
 
 
+# 📅 FETCH AVAILABLE SLOTS
 def get_available_slots(date):
-    from datetime import datetime, timedelta
+    # ✅ STEP 1 — initialize session context (CRITICAL FIX)
+    init_url = f"https://pitchpro.hu/fieldday?complex_id=12&date={date}&sport=Tenisz&field_id=27&time=13:00"
 
-    # ✅ STEP 1 — initialize session context
-    init_url = "https://pitchpro.hu/fieldday"
+    SESSION.get(init_url, headers={
+        "User-Agent": "Mozilla/5.0"
+    })
 
-    init_params = {
-        "complex_id": 12,
-        "date": date,
-        "sport": "Tenisz",
-        "field_id": 27
-    }
+    # small delay helps session consistency
+    time.sleep(0.5)
 
-    SESSION.get(init_url, params=init_params)
-
-    # ✅ STEP 2 — now fetch reservations
+    # ✅ STEP 2 — build time range
     start = f"{date}T00:00:00+01:00"
     next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     end = f"{next_day}T00:00:00+01:00"
 
+    # ✅ STEP 3 — fetch reservations
     url = "https://pitchpro.hu/fetchReservations2.php"
 
     params = {
@@ -62,8 +63,9 @@ def get_available_slots(date):
         "Origin": "https://pitchpro.hu"
     }
 
-    res = SESSION.get(url, params=params, headers=headers)
+    res = SESSION.get(url, params=params, headers=headers, allow_redirects=True)
 
+    # 🧠 Debug protection
     if "application/json" not in res.headers.get("Content-Type", ""):
         raise Exception(f"Non-JSON response: {res.text[:200]}")
 
@@ -79,16 +81,20 @@ def get_available_slots(date):
             for h in range(start_h, end_h):
                 booked.add(f"{h:02d}:00")
 
-    return [s for s in ALL_SLOTS if s not in booked]
+    available = [s for s in ALL_SLOTS if s not in booked]
+
+    return available
 
 
+# 🤖 MAIN AGENT
 def run_agent(date, preference, email, password):
-    # login
+    # login first
     if not login(email, password):
         return {"status": "login_failed"}
 
     slots = get_available_slots(date)
 
+    # filter preference
     if preference == "AM":
         slots = [s for s in slots if int(s[:2]) < 12]
     elif preference == "PM":
@@ -97,7 +103,6 @@ def run_agent(date, preference, email, password):
     if not slots:
         return {"status": "no_slots"}
 
-    # for now: just return first available (safe test)
     return {
         "status": "available",
         "suggested_slot": slots[0],
