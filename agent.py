@@ -35,30 +35,26 @@ def get_available_slots(date):
     next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     end = f"{next_day}T00:00:00+01:00"
 
-    url = "https://pitchpro.hu/fetchReservations2"
+    url = "https://pitchpro.hu/fetchReservations2.php"
 
     params = {
         "start": start,
-        "end": end,
-        "field_id": 27,
-        "sport": "Tenisz",
-        "complex_id": 12
+        "end": end
     }
 
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Accept": "*/*",
-        "Referer": "https://pitchpro.hu/fieldday?complex_id=12&sport=Tenisz&field_id=27",
+        "Referer": "https://pitchpro.hu/fieldday?complex_id=12&date=" + date + "&sport=Tenisz&field_id=27",
         "Origin": "https://pitchpro.hu"
     }
 
-    res = SESSION.get(url, params=params, headers=headers)
+    res = SESSION.get(url, params=params, headers=headers, allow_redirects=True)
 
     if "application/json" not in res.headers.get("Content-Type", ""):
         raise Exception(f"Non-JSON response: {res.text[:200]}")
 
     data = res.json()
-
 
     booked = set()
 
