@@ -29,8 +29,9 @@ def login(email, password):
 
 
 def get_available_slots(date):
-    start = f"{date}T00:00:00+01:00"
     from datetime import datetime, timedelta
+
+    start = f"{date}T00:00:00+01:00"
     next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     end = f"{next_day}T00:00:00+01:00"
 
@@ -38,7 +39,10 @@ def get_available_slots(date):
 
     params = {
         "start": start,
-        "end": end
+        "end": end,
+        "field_id": 27,
+        "sport": "Tenisz",
+        "complex_id": 12
     }
 
     headers = {
@@ -50,11 +54,11 @@ def get_available_slots(date):
 
     res = SESSION.get(url, params=params, headers=headers)
 
-    # 🔴 DEBUG: inspect response before parsing
     if "application/json" not in res.headers.get("Content-Type", ""):
         raise Exception(f"Non-JSON response: {res.text[:200]}")
 
     data = res.json()
+
 
     booked = set()
 
@@ -66,8 +70,7 @@ def get_available_slots(date):
             for h in range(start_h, end_h):
                 booked.add(f"{h:02d}:00")
 
-    available = [s for s in ALL_SLOTS if s not in booked]
-    return available
+    return [s for s in ALL_SLOTS if s not in booked]
 
 
 def run_agent(date, preference, email, password):
