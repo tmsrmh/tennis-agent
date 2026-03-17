@@ -83,8 +83,10 @@ def compute_available_slots(reservations):
     occupied = {}
 
     for r in reservations:
-        time = r["reservation_start_time"]
-        field = r["field_id"]
+        time = r.get("reservation_start_time")
+        field = r.get("field_id")
+        if not time or field is None:
+            continue
 
         if time not in occupied:
             occupied[time] = set()
@@ -105,7 +107,7 @@ def find_free_field(reservations, time):
     taken = set(
         str(r["field_id"])
         for r in reservations
-        if r["reservation_start_time"] == time
+        if r.get("reservation_start_time") == time and r.get("field_id") is not None
     )
 
     for field_id in range(1, COURT_COUNT + 1):
@@ -132,6 +134,8 @@ def run_agent(date, preference, email, password):
     chosen_slot = slots[0]
 
     field_id = find_free_field(reservations, chosen_slot)
+    if field_id is None:
+        return {"status": "no_slots"}
 
     response = create_reservation(date, chosen_slot, field_id)
 
