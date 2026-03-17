@@ -66,10 +66,10 @@ def get_available_slots(date):
     res = SESSION.get(url, params=params, headers=headers, allow_redirects=True)
 
     # 🧠 Debug protection
-    if "application/json" not in res.headers.get("Content-Type", ""):
-        raise Exception(f"Non-JSON response: {res.text[:200]}")
-
-    data = res.json()
+    try:
+        data = res.json()
+    except Exception:
+        raise Exception(f"Invalid JSON response: {res.text[:200]}")
 
     booked = set()
 
