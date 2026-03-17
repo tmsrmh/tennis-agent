@@ -3,6 +3,9 @@ import requests
 SESSION = requests.Session()
 REQUEST_TIMEOUT = 15
 COURT_COUNT = 6
+COMPLEX_ID = 12
+SPORT = "Tenisz"
+DEFAULT_FIELD_ID = 27
 
 ALL_SLOTS = [
     "07:00","08:00","09:00","10:00","11:00","12:00",
@@ -36,14 +39,31 @@ def login(email, password):
 
 # 📅 FETCH AVAILABLE SLOTS
 def get_available_slots(date):
-    url = "https://pitchpro.hu/fetchReservations2"
+    # Bootstrap session context; this endpoint relies on page context/cookies.
+    init_url = (
+        "https://pitchpro.hu/fieldday"
+        f"?complex_id={COMPLEX_ID}&date={date}&sport={SPORT}&field_id={DEFAULT_FIELD_ID}"
+    )
+    SESSION.get(init_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=REQUEST_TIMEOUT)
+
+    url = "https://pitchpro.hu/fetchReservations2.php"
 
     params = {
         "start": f"{date}T00:00:00+01:00",
         "end": f"{date}T23:59:59+01:00"
     }
 
-    res = SESSION.get(url, params=params, timeout=REQUEST_TIMEOUT)
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "*/*",
+        "Referer": (
+            "https://pitchpro.hu/fieldday"
+            f"?complex_id={COMPLEX_ID}&date={date}&sport={SPORT}&field_id={DEFAULT_FIELD_ID}"
+        ),
+        "Origin": "https://pitchpro.hu"
+    }
+
+    res = SESSION.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT, allow_redirects=True)
     res.raise_for_status()
 
     text = res.text.strip()
