@@ -1,8 +1,8 @@
 import requests
-from datetime import datetime, timedelta
-import time
 
 SESSION = requests.Session()
+REQUEST_TIMEOUT = 15
+COURT_COUNT = 6
 
 ALL_SLOTS = [
     "07:00","08:00","09:00","10:00","11:00","12:00",
@@ -26,9 +26,12 @@ def login(email, password):
         "Content-Type": "application/x-www-form-urlencoded"
     }
 
-    res = SESSION.post(url, data=payload, headers=headers)
-
-    return res.status_code == 200
+    try:
+        res = SESSION.post(url, data=payload, headers=headers, timeout=REQUEST_TIMEOUT)
+        res.raise_for_status()
+        return True
+    except requests.RequestException:
+        return False
 
 
 # 📅 FETCH AVAILABLE SLOTS
@@ -40,7 +43,8 @@ def get_available_slots(date):
         "end": f"{date}T23:59:59+01:00"
     }
 
-    res = SESSION.get(url, params=params)
+    res = SESSION.get(url, params=params, timeout=REQUEST_TIMEOUT)
+    res.raise_for_status()
 
     text = res.text.strip()
 
@@ -55,8 +59,6 @@ def get_available_slots(date):
     return slots, reservations
 
 def compute_available_slots(reservations):
-    ALL_SLOTS = [f"{h:02d}:00" for h in range(7, 21)]
-
     # map: time → set of occupied fields
     occupied = {}
 
@@ -74,27 +76,27 @@ def compute_available_slots(reservations):
     for time in ALL_SLOTS:
         fields_taken = occupied.get(time, set())
 
-        # assume 6 courts (adjust if needed)
-        if len(fields_taken) < 6:
+        if len(fields_taken) < COURT_COUNT:
             available.append(time)
 
     return available
 
 def find_free_field(reservations, time):
     taken = set(
-        r["field_id"]
+        str(r["field_id"])
         for r in reservations
         if r["reservation_start_time"] == time
     )
 
-    for field_id in range(1, 7):
+    for field_id in range(1, COURT_COUNT + 1):
         if str(field_id) not in taken:
             return field_id
 
     return None
 
 def run_agent(date, preference, email, password):
-    login(email, password)
+    if not login(email, password):
+        return {"status": "login_failed"}
 
     slots, reservations = get_available_slots(date)
 
@@ -137,6 +139,7 @@ def create_reservation(date, time_slot, field_id):
         "Origin": "https://pitchpro.hu"
     }
 
-    res = SESSION.post(url, json=payload, headers=headers)
+    res = SESSION.post(url, json=payload, headers=headers, timeout=REQUEST_TIMEOUT)
+    res.raise_for_status()
 
     return res.text
