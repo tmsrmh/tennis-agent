@@ -31,6 +31,19 @@ def login(email, password):
 def get_available_slots(date):
     from datetime import datetime, timedelta
 
+    # ✅ STEP 1 — initialize session context
+    init_url = "https://pitchpro.hu/fieldday"
+
+    init_params = {
+        "complex_id": 12,
+        "date": date,
+        "sport": "Tenisz",
+        "field_id": 27
+    }
+
+    SESSION.get(init_url, params=init_params)
+
+    # ✅ STEP 2 — now fetch reservations
     start = f"{date}T00:00:00+01:00"
     next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     end = f"{next_day}T00:00:00+01:00"
@@ -45,11 +58,11 @@ def get_available_slots(date):
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Accept": "*/*",
-        "Referer": "https://pitchpro.hu/fieldday?complex_id=12&date=" + date + "&sport=Tenisz&field_id=27",
+        "Referer": f"https://pitchpro.hu/fieldday?complex_id=12&date={date}&sport=Tenisz&field_id=27",
         "Origin": "https://pitchpro.hu"
     }
 
-    res = SESSION.get(url, params=params, headers=headers, allow_redirects=True)
+    res = SESSION.get(url, params=params, headers=headers)
 
     if "application/json" not in res.headers.get("Content-Type", ""):
         raise Exception(f"Non-JSON response: {res.text[:200]}")
